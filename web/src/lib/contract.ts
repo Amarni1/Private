@@ -1,9 +1,9 @@
 import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
 import { Contract } from '../../../src/managed/escrow/contract/index.js';
 
-const base = CompiledContract.make('Escrow', Contract);
+const zkConfigPath = '/managed/escrow';
 
-export const CompiledEscrow = {
-  ...base,
-  pipe: base.pipe.bind(base),
-} as any;
+export const CompiledEscrow = CompiledContract.make('Escrow', Contract).pipe(
+  CompiledContract.withVacantWitnesses,
+  CompiledContract.withCompiledFileAssets(zkConfigPath),
+);

@@ -30,7 +30,6 @@ export function useContract(providers: EscrowProviders | null) {
         compiledContract: CompiledEscrow,
         privateStateId: PRIVATE_STATE_ID,
         initialPrivateState: {},
-        args: [],
       });
       const addr = deployed.deployTxData.public.contractAddress;
       setState({ contractAddress: addr, deploying: false, calling: false, error: null });
