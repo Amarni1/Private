@@ -1,15 +1,9 @@
+import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
 import { Contract } from '../../../src/managed/escrow/contract/index.js';
 
-const TypeId = Symbol.for('compact-js/CompiledContract');
+const base = CompiledContract.make('Escrow', Contract);
 
 export const CompiledEscrow = {
-  tag: 'Escrow',
-  [TypeId]: {
-    ctor: Contract,
-    witnesses: {},
-    compiledAssetsPath: '/managed/escrow',
-  },
-  pipe() {
-    return arguments;
-  },
+  ...base,
+  pipe: base.pipe.bind(base),
 } as any;
