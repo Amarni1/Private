@@ -1,9 +1,15 @@
-import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
 import { Contract } from '../../../src/managed/escrow/contract/index.js';
 
-const zkConfigPath = '/managed/escrow';
+const TypeId = Symbol.for('compact-js/CompiledContract');
 
-export const CompiledEscrow = CompiledContract.make('Escrow', Contract).pipe(
-  CompiledContract.withVacantWitnesses,
-  CompiledContract.withCompiledFileAssets(zkConfigPath),
-) as any;
+export const CompiledEscrow = {
+  tag: 'Escrow',
+  [TypeId]: {
+    ctor: Contract,
+    witnesses: {},
+    compiledAssetsPath: '/managed/escrow',
+  },
+  pipe() {
+    return arguments;
+  },
+} as any;
