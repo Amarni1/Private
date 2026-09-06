@@ -1,0 +1,330 @@
+{
+  "compiler-version": "0.31.1",
+  "language-version": "0.23.0",
+  "runtime-version": "0.16.0",
+  "circuits": [
+    {
+      "name": "hashLockOf",
+      "pure": true,
+      "proof": false,
+      "arguments": [
+        {
+          "name": "secret",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "openEscrow",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "hashLock",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "tokenColor",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "amount",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 340282366920938463463374607431768211455
+          }
+        },
+        {
+          "name": "depositor",
+          "type": {
+            "type-name": "Struct",
+            "name": "UserAddress",
+            "elements": [
+              {
+                "name": "bytes",
+                "type": {
+                  "type-name": "Bytes",
+                  "length": 32
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "releaseDeadline",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        },
+        {
+          "name": "refundDeadline",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Uint",
+        "maxval": 18446744073709551615
+      }
+    },
+    {
+      "name": "release",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "escrowId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        },
+        {
+          "name": "preimage",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "recipient",
+          "type": {
+            "type-name": "Struct",
+            "name": "UserAddress",
+            "elements": [
+              {
+                "name": "bytes",
+                "type": {
+                  "type-name": "Bytes",
+                  "length": 32
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Struct",
+        "name": "UserAddress",
+        "elements": [
+          {
+            "name": "bytes",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "refund",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "escrowId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "getEscrow",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "escrowId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Struct",
+        "name": "EscrowRecord",
+        "elements": [
+          {
+            "name": "hashLock",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "tokenColor",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "amount",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 340282366920938463463374607431768211455
+            }
+          },
+          {
+            "name": "depositor",
+            "type": {
+              "type-name": "Struct",
+              "name": "UserAddress",
+              "elements": [
+                {
+                  "name": "bytes",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "releaseDeadline",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 18446744073709551615
+            }
+          },
+          {
+            "name": "refundDeadline",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 18446744073709551615
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "type-name": "Enum",
+              "name": "EscrowStatus",
+              "elements": [
+                "Open",
+                "Released",
+                "Refunded"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "witnesses": [
+  ],
+  "contracts": [
+  ],
+  "ledger": [
+    {
+      "name": "nextId",
+      "index": 0,
+      "exported": true,
+      "storage": "Counter"
+    },
+    {
+      "name": "escrows",
+      "index": 1,
+      "exported": true,
+      "storage": "Map",
+      "key": {
+        "type-name": "Uint",
+        "maxval": 18446744073709551615
+      },
+      "value": {
+        "type-name": "Struct",
+        "name": "EscrowRecord",
+        "elements": [
+          {
+            "name": "hashLock",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "tokenColor",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "amount",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 340282366920938463463374607431768211455
+            }
+          },
+          {
+            "name": "depositor",
+            "type": {
+              "type-name": "Struct",
+              "name": "UserAddress",
+              "elements": [
+                {
+                  "name": "bytes",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "releaseDeadline",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 18446744073709551615
+            }
+          },
+          {
+            "name": "refundDeadline",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 18446744073709551615
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "type-name": "Enum",
+              "name": "EscrowStatus",
+              "elements": [
+                "Open",
+                "Released",
+                "Refunded"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
