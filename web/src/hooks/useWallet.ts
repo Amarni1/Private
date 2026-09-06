@@ -5,6 +5,10 @@ import { getAddresses, getBalances } from '../lib/walletAdapter';
 import type { EscrowProviders } from '../lib/providers';
 import { buildBrowserProviders } from '../lib/providers';
 
+function log(tag: string, msg: string, data?: unknown) {
+  console.log(`[WalletHook ${tag}]`, msg, data ?? '');
+}
+
 export interface WalletState {
   status: 'disconnected' | 'connecting' | 'connected' | 'error';
   api: ConnectedAPI | null;
@@ -27,15 +31,22 @@ export function useWallet() {
 
   const detectWallets = useCallback(() => {
     const injected = (window as any).midnight;
-    if (!injected) return [];
-    return Object.values(injected).filter(
+    if (!injected) {
+      log('detect', 'window.midnight not found');
+      return [];
+    }
+    const wallets = Object.values(injected).filter(
       (w: any) => w && typeof w === 'object' && 'connect' in w,
     ) as any[];
+    log('detect', `Found ${wallets.length} wallet(s)`);
+    return wallets;
   }, []);
 
   const connect = useCallback(async (networkId: string = 'preview') => {
+    log('connect', `Connecting with networkId="${networkId}"...`);
     const wallets = detectWallets();
     if (wallets.length === 0) {
+      log('connect', 'No wallets found');
       setState((s) => ({
         ...s,
         status: 'error',
@@ -48,10 +59,15 @@ export function useWallet() {
 
     try {
       const wallet = wallets[0];
+      log('connect', 'Calling wallet.connect...');
       const api = await wallet.connect(networkId);
+      log('connect', 'wallet.connect resolved, getting addresses...');
       const addresses = await getAddresses(api);
+      log('connect', 'Getting balances...');
       const balances = await getBalances(api);
+      log('connect', 'Building providers...');
       const providers = await buildBrowserProviders(api);
+      log('connect', 'Connected successfully');
 
       setState({
         status: 'connected',
@@ -62,6 +78,8 @@ export function useWallet() {
         error: null,
       });
     } catch (err: any) {
+      log('connect', 'Connection FAILED:', err?.message ?? err);
+      console.error('[WalletHook connect] Full error:', err);
       setState((s) => ({
         ...s,
         status: 'error',
