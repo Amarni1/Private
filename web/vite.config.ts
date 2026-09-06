@@ -11,4 +11,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@midnight-ntwrk/onchain-runtime-v3'],
   },
+  define: {
+    'global': 'globalThis',
+  },
 });
