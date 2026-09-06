@@ -18,7 +18,7 @@ let zkConfig: FetchZkConfigProvider<any> | null = null;
 export function getZkConfigProvider(): FetchZkConfigProvider<any> {
   if (!zkConfig) {
     zkConfig = new FetchZkConfigProvider<any>(
-      window.location.origin,
+      `${window.location.origin}/managed/escrow`,
       fetch.bind(window),
     );
   }
