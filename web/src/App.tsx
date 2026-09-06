@@ -26,8 +26,14 @@ export default function App() {
 
   const handleOpen = useCallback(
     async (amount: bigint, releaseMinutes: number, refundHours: number) => {
-      if (!contractAddr) return null;
-      return contract.openEscrow(contractAddr, amount, releaseMinutes, refundHours) ?? null;
+      let addr = contractAddr;
+      if (!addr) {
+        const deployed = await contract.deploy();
+        if (!deployed) return null;
+        addr = deployed;
+        setContractAddr(addr);
+      }
+      return contract.openEscrow(addr, amount, releaseMinutes, refundHours) ?? null;
     },
     [contractAddr, contract],
   );
@@ -73,23 +79,23 @@ export default function App() {
 
         {wallet.status === 'connected' && wallet.providers && (
           <section>
+            <OpenEscrowForm
+              contractAddress={contractAddr}
+              onOpen={handleOpen}
+              deploying={contract.deploying}
+              calling={contract.calling}
+              error={contract.error}
+            />
+          </section>
+        )}
+
+        {wallet.status === 'connected' && wallet.providers && !contractAddr && (
+          <section>
             <DeployButton
               deploying={contract.deploying}
               contractAddress={contractAddr}
               error={contract.error}
               onDeploy={handleDeploy}
-            />
-          </section>
-        )}
-
-        {contractAddr && wallet.providers && (
-          <section>
-            <OpenEscrowForm
-              providers={wallet.providers}
-              contractAddress={contractAddr}
-              onOpen={handleOpen}
-              calling={contract.calling}
-              error={contract.error}
             />
           </section>
         )}
