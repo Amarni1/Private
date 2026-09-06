@@ -1,0 +1,102 @@
+pragma language_version 0.23;
+import CompactStandardLibrary;
+
+export enum EscrowStatus { Open, Released, Refunded }
+
+export struct EscrowRecord {
+  hashLock: Bytes<32>,
+  tokenColor: Bytes<32>,
+  amount: Uint<128>,
+  depositor: UserAddress,
+  releaseDeadline: Uint<64>,
+  refundDeadline: Uint<64>,
+  status: EscrowStatus,
+}
+
+export ledger nextId: Counter;
+export ledger escrows: Map<Uint<64>, EscrowRecord>;
+
+export pure circuit hashLockOf(secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "usdm:private-escrow:v1"), secret]);
+}
+
+export circuit openEscrow(
+  hashLock: Bytes<32>,
+  tokenColor: Bytes<32>,
+  amount: Uint<128>,
+  depositor: UserAddress,
+  releaseDeadline: Uint<64>,
+  refundDeadline: Uint<64>,
+): Uint<64> {
+  assert(amount != 0 as Uint<128>, "amount must be greater than zero");
+  assert(releaseDeadline < refundDeadline, "refund deadline must be after the release deadline");
+  assert(kernel.blockTimeLessThan(disclose(releaseDeadline)), "release deadline must be in the future");
+  receiveUnshielded(disclose(tokenColor), disclose(amount));
+  const id = nextId;
+  nextId += 1;
+  escrows.insert(id, EscrowRecord {
+    hashLock: disclose(hashLock),
+    tokenColor: disclose(tokenColor),
+    amount: disclose(amount),
+    depositor: disclose(depositor),
+    releaseDeadline: disclose(releaseDeadline),
+    refundDeadline: disclose(refundDeadline),
+    status: EscrowStatus.Open,
+  });
+  return id;
+}
+
+export circuit release(
+  escrowId: Uint<64>,
+  preimage: Bytes<32>,
+  recipient: UserAddress,
+): UserAddress {
+  assert(escrows.member(disclose(escrowId)), "escrow does not exist");
+  const record = escrows.lookup(disclose(escrowId));
+  assert(record.status == EscrowStatus.Open, "escrow is not open");
+  assert(record.hashLock == hashLockOf(preimage), "preimage does not match the hash lock");
+  assert(!kernel.blockTimeGreaterThan(record.releaseDeadline), "release window has closed");
+  assert(unshieldedBalanceGte(record.tokenColor, record.amount), "contract holds insufficient tokens");
+  sendUnshielded(
+    record.tokenColor,
+    record.amount,
+    right<ContractAddress, UserAddress>(disclose(recipient)),
+  );
+  escrows.insert(disclose(escrowId), EscrowRecord {
+    hashLock: record.hashLock,
+    tokenColor: record.tokenColor,
+    amount: record.amount,
+    depositor: record.depositor,
+    releaseDeadline: record.releaseDeadline,
+    refundDeadline: record.refundDeadline,
+    status: EscrowStatus.Released,
+  });
+  return disclose(recipient);
+}
+
+export circuit refund(escrowId: Uint<64>): [] {
+  assert(escrows.member(disclose(escrowId)), "escrow does not exist");
+  const record = escrows.lookup(disclose(escrowId));
+  assert(record.status == EscrowStatus.Open, "escrow is not open");
+  assert(kernel.blockTimeGreaterThan(record.refundDeadline), "refund window has not opened");
+  assert(unshieldedBalanceGte(record.tokenColor, record.amount), "contract holds insufficient tokens");
+  sendUnshielded(
+    record.tokenColor,
+    record.amount,
+    right<ContractAddress, UserAddress>(record.depositor),
+  );
+  escrows.insert(disclose(escrowId), EscrowRecord {
+    hashLock: record.hashLock,
+    tokenColor: record.tokenColor,
+    amount: record.amount,
+    depositor: record.depositor,
+    releaseDeadline: record.releaseDeadline,
+    refundDeadline: record.refundDeadline,
+    status: EscrowStatus.Refunded,
+  });
+}
+
+export circuit getEscrow(escrowId: Uint<64>): EscrowRecord {
+  assert(escrows.member(disclose(escrowId)), "escrow does not exist");
+  return escrows.lookup(disclose(escrowId));
+}
