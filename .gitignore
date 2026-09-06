@@ -3,3 +3,7 @@ src/managed/
 escrow-state.json
 .env
 *.log
+
+# Web build
+web/node_modules/
+web/dist/
