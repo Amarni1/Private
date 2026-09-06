@@ -117,3 +117,33 @@ input {
 .escrow-details td { padding: 0.15rem 0; }
 .escrow-actions { margin-top: 0.75rem; }
 .escrow-form { margin-top: 0.75rem; }
+
+.tx-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.tx-header h3 { font-size: 1rem; }
+.tx-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; }
+.tx-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.tx-table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.tx-table tr:last-child td { border-bottom: none; }
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}

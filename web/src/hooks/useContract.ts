@@ -3,7 +3,6 @@ import { deployContract, submitCallTx } from '@midnight-ntwrk/midnight-js-contra
 import { CompiledEscrow } from '../lib/contract';
 import { encodeAddress, detectUsdmColor } from '../lib/tokens';
 import type { EscrowProviders } from '../lib/providers';
-import { getZkConfigProvider } from '../lib/providers';
 
 const PRIVATE_STATE_ID = 'usdm-private-escrow';
 
@@ -14,6 +13,16 @@ export interface ContractState {
   error: string | null;
 }
 
+export interface DeployResult {
+  contractAddress: string;
+  txHash: string;
+}
+
+export interface OpenResult {
+  preimage: number[];
+  txHash: string;
+}
+
 export function useContract(providers: EscrowProviders | null) {
   const [state, setState] = useState<ContractState>({
     contractAddress: null,
@@ -22,8 +31,8 @@ export function useContract(providers: EscrowProviders | null) {
     error: null,
   });
 
-  const deploy = useCallback(async () => {
-    if (!providers) return;
+  const deploy = useCallback(async (): Promise<DeployResult | null> => {
+    if (!providers) return null;
     setState((s) => ({ ...s, deploying: true, error: null }));
     try {
       const deployed = await deployContract(providers, {
@@ -32,8 +41,9 @@ export function useContract(providers: EscrowProviders | null) {
         initialPrivateState: {},
       });
       const addr = deployed.deployTxData.public.contractAddress;
+      const txHash = deployed.deployTxData.public.txHash ?? 'unknown';
       setState({ contractAddress: addr, deploying: false, calling: false, error: null });
-      return addr;
+      return { contractAddress: addr, txHash };
     } catch (err: any) {
       setState((s) => ({ ...s, deploying: false, error: err?.message ?? 'Deploy failed' }));
       return null;
@@ -46,7 +56,7 @@ export function useContract(providers: EscrowProviders | null) {
       amount: bigint,
       releaseMinutes: number,
       refundHours: number,
-    ) => {
+    ): Promise<OpenResult | null> => {
       if (!providers) return null;
       setState((s) => ({ ...s, calling: true, error: null }));
       try {
@@ -76,7 +86,7 @@ export function useContract(providers: EscrowProviders | null) {
           }
         }
 
-        await submitCallTx(providers, {
+        const result = await submitCallTx(providers, {
           compiledContract: CompiledEscrow,
           contractAddress,
           privateStateId: PRIVATE_STATE_ID,
@@ -90,8 +100,9 @@ export function useContract(providers: EscrowProviders | null) {
             BigInt(nowSec + refundHours * 3600),
           ],
         });
+        const txHash = (result as any)?.txHash ?? (result as any)?.public?.txHash ?? 'submitted';
         setState((s) => ({ ...s, calling: false }));
-        return { preimage: Array.from(preimage) };
+        return { preimage: Array.from(preimage), txHash };
       } catch (err: any) {
         setState((s) => ({ ...s, calling: false, error: err?.message ?? 'Open failed' }));
         return null;
@@ -106,41 +117,47 @@ export function useContract(providers: EscrowProviders | null) {
       escrowId: bigint,
       preimage: Uint8Array,
       recipientAddress: string,
-    ) => {
-      if (!providers) return;
+    ): Promise<string | null> => {
+      if (!providers) return null;
       setState((s) => ({ ...s, calling: true, error: null }));
       try {
         const recipient = encodeAddress(recipientAddress);
-        await submitCallTx(providers, {
+        const result = await submitCallTx(providers, {
           compiledContract: CompiledEscrow,
           contractAddress,
           privateStateId: PRIVATE_STATE_ID,
           circuitId: 'release',
           args: [escrowId, preimage, recipient],
         });
+        const txHash = (result as any)?.txHash ?? (result as any)?.public?.txHash ?? 'submitted';
         setState((s) => ({ ...s, calling: false }));
+        return txHash;
       } catch (err: any) {
         setState((s) => ({ ...s, calling: false, error: err?.message ?? 'Release failed' }));
+        return null;
       }
     },
     [providers],
   );
 
   const refund = useCallback(
-    async (contractAddress: string, escrowId: bigint) => {
-      if (!providers) return;
+    async (contractAddress: string, escrowId: bigint): Promise<string | null> => {
+      if (!providers) return null;
       setState((s) => ({ ...s, calling: true, error: null }));
       try {
-        await submitCallTx(providers, {
+        const result = await submitCallTx(providers, {
           compiledContract: CompiledEscrow,
           contractAddress,
           privateStateId: PRIVATE_STATE_ID,
           circuitId: 'refund',
           args: [escrowId],
         });
+        const txHash = (result as any)?.txHash ?? (result as any)?.public?.txHash ?? 'submitted';
         setState((s) => ({ ...s, calling: false }));
+        return txHash;
       } catch (err: any) {
         setState((s) => ({ ...s, calling: false, error: err?.message ?? 'Refund failed' }));
+        return null;
       }
     },
     [providers],
