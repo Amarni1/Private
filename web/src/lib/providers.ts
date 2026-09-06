@@ -11,6 +11,10 @@ import {
   getAddresses,
 } from './walletAdapter';
 
+function log(tag: string, msg: string, data?: unknown) {
+  console.log(`[Providers ${tag}]`, msg, data ?? '');
+}
+
 export type EscrowProviders = MidnightProviders<any, any, any>;
 
 let zkConfig: FetchZkConfigProvider<any> | null = null;
@@ -28,13 +32,27 @@ export function getZkConfigProvider(): FetchZkConfigProvider<any> {
 export async function buildBrowserProviders(
   api: ConnectedAPI,
 ): Promise<EscrowProviders> {
+  log('build', 'Fetching wallet configuration...');
   const config = await api.getConfiguration();
+  log('build', 'Wallet config received', {
+    networkId: config.networkId,
+    indexerUri: config.indexerUri,
+    indexerWsUri: config.indexerWsUri,
+    proverServerUri: config.proverServerUri,
+  });
+
+  log('build', 'Getting wallet addresses...');
   const { shieldedCoinPublicKey, shieldedEncryptionPublicKey } =
     await getAddresses(api);
+  log('build', 'Addresses obtained');
 
   setNetworkId(config.networkId as any);
 
   const zkConfigProvider = getZkConfigProvider();
+  log('build', 'ZK config provider ready (fetching from browser)');
+
+  const proofServerUri = config.proverServerUri ?? 'http://127.0.0.1:6300';
+  log('build', 'Proof server URI:', proofServerUri);
 
   const walletProvider = createWalletProvider(
     api,
@@ -54,7 +72,7 @@ export async function buildBrowserProviders(
       config.indexerWsUri,
     ),
     zkConfigProvider,
-    proofProvider: httpClientProofProvider(config.proverServerUri ?? 'http://127.0.0.1:6300', zkConfigProvider),
+    proofProvider: httpClientProofProvider(proofServerUri, zkConfigProvider),
     walletProvider,
     midnightProvider,
   };

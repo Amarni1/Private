@@ -9,6 +9,10 @@ import {
 } from '@midnight-ntwrk/midnight-js-protocol/ledger';
 import { toHex, fromHex } from '@midnight-ntwrk/midnight-js-utils';
 
+function log(tag: string, msg: string, data?: unknown) {
+  console.log(`[Wallet ${tag}]`, msg, data ?? '');
+}
+
 export interface WalletAddresses {
   shieldedAddress: string;
   shieldedCoinPublicKey: string;
@@ -53,9 +57,12 @@ export function createWalletProvider(
     getCoinPublicKey: () => coinPublicKey as any,
     getEncryptionPublicKey: () => encryptionPublicKey as any,
     balanceTx: async (tx: UnboundTransaction): Promise<any> => {
+      log('balanceTx', 'Serializing unbalanced tx...');
       const serialized = toHex((tx as any).serialize());
+      log('balanceTx', 'Calling wallet.balanceUnsealedTransaction...');
       const { tx: balancedHex } =
         await api.balanceUnsealedTransaction(serialized);
+      log('balanceTx', 'Balancing succeeded, deserializing...');
       return Transaction.deserialize(
         'signature',
         'proof',
@@ -70,8 +77,11 @@ export function createMidnightProvider(api: ConnectedAPI): MidnightProvider {
   return {
     submitTx: async (tx: any): Promise<string> => {
       const hex = toHex(tx.serialize());
+      log('submitTx', 'Calling wallet.submitTransaction...');
       await api.submitTransaction(hex);
-      return tx.identifiers?.()[0] ?? 'submitted';
+      const hash = tx.identifiers?.()[0] ?? 'submitted';
+      log('submitTx', 'Transaction submitted', { hash });
+      return hash;
     },
   };
 }

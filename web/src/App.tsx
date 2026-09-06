@@ -3,9 +3,7 @@ import { useWallet } from './hooks/useWallet';
 import { useContract } from './hooks/useContract';
 import { useEscrows } from './hooks/useEscrows';
 import { useTransactionHistory } from './hooks/useTransactionHistory';
-import { ConnectButton } from './components/ConnectButton';
-import { BalanceDisplay } from './components/BalanceDisplay';
-import { DeployButton } from './components/DeployButton';
+import { Sidebar, type View } from './components/Sidebar';
 import { OpenEscrowForm } from './components/OpenEscrowForm';
 import { EscrowCard } from './components/EscrowCard';
 import { TransactionHistory } from './components/TransactionHistory';
@@ -17,6 +15,7 @@ export default function App() {
   const escrows = useEscrows(wallet.providers);
   const history = useTransactionHistory();
   const [contractAddr, setContractAddr] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<View>('open');
 
   const handleDeploy = useCallback(async () => {
     const result = await contract.deploy();
@@ -104,28 +103,25 @@ export default function App() {
   );
 
   return (
-    <div className="app">
-      <header>
-        <h1>USDM Escrow</h1>
-        <p className="subtitle">Zero-knowledge gated escrow on Midnight</p>
-      </header>
+    <div className="app-layout">
+      <Sidebar
+        wallet={wallet}
+        contract={contract}
+        balances={wallet.balances}
+        onConnect={wallet.connect}
+        onRefreshBalances={wallet.refreshBalances}
+        activeView={activeView}
+        onViewChange={setActiveView}
+        escrowCount={escrows.escrows.length}
+      />
 
-      <main>
-        <section>
-          <ConnectButton wallet={wallet} onConnect={wallet.connect} />
-        </section>
-
-        {wallet.status === 'connected' && (
+      <main className="main-content">
+        {activeView === 'open' && (
           <section>
-            <BalanceDisplay
-              balances={wallet.balances}
-              onRefresh={wallet.refreshBalances}
-            />
-          </section>
-        )}
-
-        {wallet.status === 'connected' && wallet.providers && (
-          <section>
+            <h2>Open Escrow</h2>
+            <p className="hint" style={{ marginBottom: '1rem' }}>
+              Deposit USDM into a ZK-gated escrow. The buyer proves knowledge of a secret to release funds.
+            </p>
             <OpenEscrowForm
               contractAddress={contractAddr}
               onOpen={handleOpen}
@@ -133,21 +129,17 @@ export default function App() {
               calling={contract.calling}
               error={contract.error}
             />
+            {wallet.status === 'connected' && wallet.providers && !contractAddr && (
+              <div style={{ marginTop: '1rem' }}>
+                <button className="btn" onClick={handleDeploy} disabled={contract.deploying}>
+                  {contract.deploying ? 'Deploying...' : 'Deploy Contract Separately'}
+                </button>
+              </div>
+            )}
           </section>
         )}
 
-        {wallet.status === 'connected' && wallet.providers && !contractAddr && (
-          <section>
-            <DeployButton
-              deploying={contract.deploying}
-              contractAddress={contractAddr}
-              error={contract.error}
-              onDeploy={handleDeploy}
-            />
-          </section>
-        )}
-
-        {wallet.status === 'connected' && (
+        {activeView === 'escrows' && (
           <section>
             <div className="escrow-list-header">
               <h2>Active Escrows</h2>
@@ -158,7 +150,7 @@ export default function App() {
               )}
             </div>
             {!contractAddr && (
-              <p className="hint">Deploy a contract to view escrows.</p>
+              <p className="hint">Deploy a contract first from the "Open Escrow" tab.</p>
             )}
             {contractAddr && escrows.loading && <p>Loading...</p>}
             {contractAddr && escrows.error && <div className="error">{escrows.error}</div>}
@@ -172,12 +164,12 @@ export default function App() {
               />
             ))}
             {contractAddr && !escrows.loading && escrows.escrows.length === 0 && (
-              <p className="hint">No escrows yet. Open one above.</p>
+              <p className="hint">No escrows yet. Open one from the "Open Escrow" tab.</p>
             )}
           </section>
         )}
 
-        {wallet.status === 'connected' && (
+        {activeView === 'history' && (
           <section>
             <TransactionHistory
               entries={history.entries}
