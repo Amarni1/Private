@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useWallet } from './hooks/useWallet';
 import { useContract } from './hooks/useContract';
 import { useEscrows } from './hooks/useEscrows';
@@ -9,6 +9,10 @@ import { EscrowCard } from './components/EscrowCard';
 import { TransactionHistory } from './components/TransactionHistory';
 import './App.css';
 
+function log(tag: string, msg: string, data?: unknown) {
+  console.log(`[App ${tag}]`, msg, data ?? '');
+}
+
 export default function App() {
   const wallet = useWallet();
   const contract = useContract(wallet.providers);
@@ -16,10 +20,31 @@ export default function App() {
   const history = useTransactionHistory();
   const [contractAddr, setContractAddr] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<View>('open');
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleRefreshEscrows = useCallback(() => {
+    if (contractAddr) {
+      log('refresh', `Refreshing escrows for ${contractAddr}`);
+      escrows.refresh(contractAddr);
+    }
+  }, [contractAddr, escrows]);
+
+  const delayedRefresh = useCallback(
+    (addr: string) => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        log('delayedRefresh', `Auto-refreshing escrows for ${addr}`);
+        escrows.refresh(addr);
+      }, 3000);
+    },
+    [escrows],
+  );
 
   const handleDeploy = useCallback(async () => {
+    log('deploy', 'Deploy button clicked');
     const result = await contract.deploy();
     if (result) {
+      log('deploy', 'Deploy succeeded, address:', result.contractAddress);
       setContractAddr(result.contractAddress);
       history.addEntry({
         type: 'deploy',
@@ -28,17 +53,15 @@ export default function App() {
         detail: 'Contract deployed',
         status: 'submitted',
       });
+      delayedRefresh(result.contractAddress);
     }
-  }, [contract, history]);
-
-  const handleRefreshEscrows = useCallback(() => {
-    if (contractAddr) escrows.refresh(contractAddr);
-  }, [contractAddr, escrows]);
+  }, [contract, history, delayedRefresh]);
 
   const handleOpen = useCallback(
     async (amount: bigint, releaseMinutes: number, refundHours: number, tokenColorHex: string) => {
       let addr = contractAddr;
       if (!addr) {
+        log('open', 'No contract, deploying first...');
         const deployed = await contract.deploy();
         if (!deployed) return null;
         addr = deployed.contractAddress;
@@ -51,8 +74,10 @@ export default function App() {
           status: 'submitted',
         });
       }
+      log('open', `Opening escrow at ${addr}...`);
       const result = await contract.openEscrow(addr, amount, releaseMinutes, refundHours, tokenColorHex);
       if (result) {
+        log('open', 'Escrow opened, preimage saved');
         history.addEntry({
           type: 'open',
           txHash: result.txHash,
@@ -60,10 +85,11 @@ export default function App() {
           detail: `${(Number(amount) / 1e6).toFixed(2)} USDM`,
           status: 'submitted',
         });
+        delayedRefresh(addr);
       }
       return result;
     },
-    [contractAddr, contract, history],
+    [contractAddr, contract, history, delayedRefresh],
   );
 
   const handleRelease = useCallback(
@@ -78,10 +104,10 @@ export default function App() {
           detail: `Escrow #${escrowId}`,
           status: 'submitted',
         });
+        delayedRefresh(contractAddr);
       }
-      handleRefreshEscrows();
     },
-    [contractAddr, contract, history, handleRefreshEscrows],
+    [contractAddr, contract, history, delayedRefresh],
   );
 
   const handleRefund = useCallback(
@@ -96,10 +122,10 @@ export default function App() {
           detail: `Escrow #${escrowId}`,
           status: 'submitted',
         });
+        delayedRefresh(contractAddr);
       }
-      handleRefreshEscrows();
     },
-    [contractAddr, contract, history, handleRefreshEscrows],
+    [contractAddr, contract, history, delayedRefresh],
   );
 
   return (
@@ -122,6 +148,11 @@ export default function App() {
             <p className="hint" style={{ marginBottom: '1rem' }}>
               Deposit USDM into a ZK-gated escrow. The buyer proves knowledge of a secret to release funds.
             </p>
+            {contractAddr && (
+              <div className="hint" style={{ marginBottom: '0.75rem' }}>
+                Contract: <code title={contractAddr}>{contractAddr.slice(0, 24)}...</code>
+              </div>
+            )}
             <OpenEscrowForm
               contractAddress={contractAddr}
               balances={wallet.balances}
@@ -153,6 +184,11 @@ export default function App() {
             {!contractAddr && (
               <p className="hint">Deploy a contract first from the "Open Escrow" tab.</p>
             )}
+            {contractAddr && (
+              <div className="hint" style={{ marginBottom: '0.75rem' }}>
+                Contract: <code title={contractAddr}>{contractAddr.slice(0, 24)}...</code>
+              </div>
+            )}
             {contractAddr && escrows.loading && <p>Loading...</p>}
             {contractAddr && escrows.error && <div className="error">{escrows.error}</div>}
             {contractAddr && escrows.escrows.map((e) => (
@@ -165,7 +201,7 @@ export default function App() {
               />
             ))}
             {contractAddr && !escrows.loading && escrows.escrows.length === 0 && (
-              <p className="hint">No escrows yet. Open one from the "Open Escrow" tab.</p>
+              <p className="hint">No escrows found. Try opening one from the "Open Escrow" tab, then refresh.</p>
             )}
           </section>
         )}

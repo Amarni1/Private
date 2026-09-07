@@ -3,6 +3,10 @@ import { ledger } from '../lib/tokens';
 import type { EscrowRecord, EscrowStatus } from '../lib/tokens';
 import type { EscrowProviders } from '../lib/providers';
 
+function log(tag: string, msg: string, data?: unknown) {
+  console.log(`[Escrows ${tag}]`, msg, data ?? '');
+}
+
 export interface Escrow {
   id: bigint;
   hashLock: Uint8Array;
@@ -30,23 +34,32 @@ export function useEscrows(providers: EscrowProviders | null) {
       if (!providers) return;
       setLoading(true);
       setError(null);
+      log('refresh', 'Querying contract state...', { contractAddress });
       try {
         const query = await providers.publicDataProvider.queryContractState(
           contractAddress,
         );
         if (!query?.data) {
+          log('refresh', 'No on-chain state found');
           setEscrows([]);
           setLoading(false);
           return;
         }
+        log('refresh', 'Got chain state, decoding ledger...');
         const decoded = ledger(query.data);
         const result: Escrow[] = [];
         const escrowsMap = decoded.escrows;
         const nextId = Number(decoded.nextId ?? 0n);
+        log('refresh', `nextId=${nextId}`);
         for (let i = 0; i < nextId; i++) {
           const id = BigInt(i);
           if (escrowsMap.member(id)) {
             const rec = escrowsMap.lookup(id) as unknown as EscrowRecord;
+            log('refresh', `Escrow #${i}:`, {
+              status: rec.status,
+              amount: rec.amount?.toString(),
+              tokenColor: Array.from(rec.tokenColor ?? []).map(b => b.toString(16).padStart(2, '0')).join(''),
+            });
             result.push({
               id,
               hashLock: rec.hashLock,
@@ -59,9 +72,13 @@ export function useEscrows(providers: EscrowProviders | null) {
             });
           }
         }
+        log('refresh', `Found ${result.length} escrows`);
         setEscrows(result);
       } catch (err: any) {
-        setError(err?.message ?? 'Failed to read escrows');
+        const msg = err?.message ?? 'Failed to read escrows';
+        log('refresh', 'ERROR:', msg);
+        console.error('[Escrows] Full error:', err);
+        setError(msg);
       } finally {
         setLoading(false);
       }

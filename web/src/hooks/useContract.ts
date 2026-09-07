@@ -10,14 +10,36 @@ function log(tag: string, msg: string, data?: unknown) {
   console.log(`[Escrow ${tag}]`, msg, data ?? '');
 }
 
-function extractError(err: unknown): string {
+function deepExtractMessage(err: unknown): string {
+  if (err === null || err === undefined) return String(err);
+  if (typeof err === 'string') return err;
   if (err instanceof Error) {
-    const inner = (err as any).cause;
-    if (inner instanceof Error) return `${err.message} → ${extractError(inner)}`;
-    if (inner) return `${err.message} → ${String(inner)}`;
-    return err.message;
+    const parts = [err.message];
+    const cause = (err as any).cause;
+    if (cause) parts.push(deepExtractMessage(cause));
+    const details = (err as any).details;
+    if (details) parts.push(deepExtractMessage(details));
+    const extra = (err as any).extra;
+    if (extra) parts.push(String(extra));
+    return parts.filter(Boolean).join(' | ');
+  }
+  if (typeof err === 'object') {
+    const obj = err as any;
+    if (obj.message) return deepExtractMessage(obj.message);
+    if (obj.error) return deepExtractMessage(obj.error);
+    if (obj.reason) return deepExtractMessage(obj.reason);
+    if (obj.msg) return deepExtractMessage(obj.msg);
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
   }
   return String(err);
+}
+
+function extractError(err: unknown): string {
+  return deepExtractMessage(err).slice(0, 500);
 }
 
 export interface ContractState {
