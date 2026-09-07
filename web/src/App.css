@@ -262,6 +262,14 @@ input {
   vertical-align: middle;
 }
 
+.tx-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.tx-link:hover {
+  text-decoration: underline;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar {

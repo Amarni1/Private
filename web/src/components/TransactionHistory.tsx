@@ -27,6 +27,13 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString();
 }
 
+function getExplorerUrl(hash: string): string {
+  if (hash === 'submitted' || hash === 'unknown' || !hash.match(/^[0-9a-f]{10,}$/i)) {
+    return '';
+  }
+  return `https://explorer.preview.midnight.network/transaction/${hash}`;
+}
+
 export function TransactionHistory({ entries, onClear }: Props) {
   return (
     <div className="card">
@@ -52,23 +59,37 @@ export function TransactionHistory({ entries, onClear }: Props) {
             </tr>
           </thead>
           <tbody>
-            {entries.map((e) => (
-              <tr key={e.id}>
-                <td className="mono">{formatTime(e.timestamp)}</td>
-                <td>{TYPE_LABELS[e.type]}</td>
-                <td className="mono">{e.detail}</td>
-                <td className="mono" title={e.txHash}>
-                  {truncateHash(e.txHash)}
-                </td>
-                <td>
-                  <span
-                    className="status-dot"
-                    style={{ background: STATUS_COLORS[e.status] }}
-                  />
-                  {e.status}
-                </td>
-              </tr>
-            ))}
+            {entries.map((e) => {
+              const explorerUrl = getExplorerUrl(e.txHash);
+              return (
+                <tr key={e.id}>
+                  <td className="mono">{formatTime(e.timestamp)}</td>
+                  <td>{TYPE_LABELS[e.type]}</td>
+                  <td className="mono">{e.detail}</td>
+                  <td className="mono" title={e.txHash}>
+                    {explorerUrl ? (
+                      <a
+                        href={explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="tx-link"
+                      >
+                        {truncateHash(e.txHash)}
+                      </a>
+                    ) : (
+                      truncateHash(e.txHash)
+                    )}
+                  </td>
+                  <td>
+                    <span
+                      className="status-dot"
+                      style={{ background: STATUS_COLORS[e.status] }}
+                    />
+                    {e.status}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

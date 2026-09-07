@@ -80,6 +80,7 @@ export function useContract(providers: EscrowProviders | null) {
       amount: bigint,
       releaseMinutes: number,
       refundHours: number,
+      tokenColorHex?: string,
     ): Promise<OpenResult | null> => {
       if (!providers) {
         log('open', 'No providers');
@@ -88,9 +89,18 @@ export function useContract(providers: EscrowProviders | null) {
       setState((s) => ({ ...s, calling: true, error: null }));
       log('open', 'Starting openEscrow...', { contractAddress, amount: amount.toString() });
       try {
-        log('open', 'Detecting USDM color...');
-        const usdmColor = await detectUsdmColor(providers, contractAddress);
-        log('open', 'USDM color:', usdmColor);
+        let usdmColor: Uint8Array;
+        if (tokenColorHex && tokenColorHex !== '0'.repeat(64)) {
+          log('open', 'Using provided USDM color:', tokenColorHex);
+          usdmColor = new Uint8Array(32);
+          for (let i = 0; i < Math.min(tokenColorHex.length, 64); i += 2) {
+            usdmColor[i / 2] = parseInt(tokenColorHex.substring(i, i + 2), 16);
+          }
+        } else {
+          log('open', 'No USDM color provided, detecting from chain...');
+          usdmColor = await detectUsdmColor(providers, contractAddress);
+        }
+        log('open', 'USDM color bytes:', Array.from(usdmColor).map(b => b.toString(16).padStart(2, '0')).join(''));
 
         const nowSec = Math.floor(Date.now() / 1000);
         const preimage = crypto.getRandomValues(new Uint8Array(32));

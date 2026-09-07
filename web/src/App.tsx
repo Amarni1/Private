@@ -36,7 +36,7 @@ export default function App() {
   }, [contractAddr, escrows]);
 
   const handleOpen = useCallback(
-    async (amount: bigint, releaseMinutes: number, refundHours: number) => {
+    async (amount: bigint, releaseMinutes: number, refundHours: number, tokenColorHex: string) => {
       let addr = contractAddr;
       if (!addr) {
         const deployed = await contract.deploy();
@@ -51,7 +51,7 @@ export default function App() {
           status: 'submitted',
         });
       }
-      const result = await contract.openEscrow(addr, amount, releaseMinutes, refundHours);
+      const result = await contract.openEscrow(addr, amount, releaseMinutes, refundHours, tokenColorHex);
       if (result) {
         history.addEntry({
           type: 'open',
@@ -124,6 +124,7 @@ export default function App() {
             </p>
             <OpenEscrowForm
               contractAddress={contractAddr}
+              balances={wallet.balances}
               onOpen={handleOpen}
               deploying={contract.deploying}
               calling={contract.calling}
